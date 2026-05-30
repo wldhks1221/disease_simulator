@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전염병 확산 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900">
+    <div class="min-h-screen p-8">
+        <div class="max-w-7xl mx-auto">
+            <!-- 제목 -->
+            <h1 class="text-4xl font-bold text-center mb-2 text-white">전염병 확산 시뮬레이터</h1>
+            <p class="text-center text-gray-300 mb-8">감염병이 퍼지는 원리를 탐구하세요</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 왼쪽: 시뮬레이션 영역 -->
+                <div class="lg:col-span-2">
+                    <!-- 시뮬레이션 제어 -->
+                    <div class="bg-gray-800 rounded-lg shadow-lg p-4 mb-4">
+                        <h3 class="text-lg font-bold mb-4 text-white">감염 실험</h3>
+                        <div class="space-y-3">
+                            <div class="flex gap-2">
+                                <input type="number" id="infectionCountInput" min="1" max="180" value="10" class="flex-1 px-3 py-2 border border-gray-600 rounded bg-gray-700 text-white text-sm">
+                                <button id="infectBtn" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded">
+                                    감염시키기
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-400">시뮬레이션 중에 건강한 사람을 감염시킵니다</p>
+                        </div>
+                    </div>
+
+                    <!-- 캔버스 -->
+                    <div class="bg-gray-800 rounded-lg shadow-lg p-4 mb-4">
+                        <canvas id="simulationCanvas" width="600" height="400" class="w-full border-2 border-gray-600 rounded"></canvas>
+                    </div>
+
+                    <!-- 통계 정보 -->
+                    <div class="grid grid-cols-5 gap-3 mb-4">
+                        <div class="bg-blue-100 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-600">건강한 사람(면역 X)</p>
+                            <p class="text-xl font-bold text-blue-600" id="healthyCount">120</p>
+                        </div>
+                        <div class="bg-purple-200 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-600">백신 접종자</p>
+                            <p class="text-xl font-bold text-purple-600" id="vaccinatedCount">0</p>
+                        </div>
+                        <div class="bg-red-100 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-600">감염된 사람</p>
+                            <p class="text-xl font-bold text-red-600" id="infectedCount">3</p>
+                        </div>
+                        <div class="bg-green-100 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-600">회복한 사람(면역 O)</p>
+                            <p class="text-xl font-bold text-green-600" id="recoveredCount">0</p>
+                        </div>
+                        <div class="bg-white rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-600">사망자</p>
+                            <p class="text-xl font-bold text-gray-700" id="deathCount">0</p>
+                        </div>
+                    </div>
+
+                    <!-- 상태 표시 -->
+                    <div class="bg-gray-800 rounded-lg shadow p-4 mb-4">
+                        <p class="text-sm text-gray-300 mb-2">현재 상태</p>
+                        <p class="text-lg font-bold text-white" id="statusText">준비 중</p>
+                    </div>
+
+                    <!-- 그래프 -->
+                    <div class="bg-gray-800 rounded-lg shadow-lg p-4">
+                        <h3 class="text-lg font-bold mb-4 text-white">감염자 수 그래프</h3>
+                        <canvas id="graphCanvas" width="550" height="250" class="w-full border-2 border-gray-600 rounded"></canvas>
+                    </div>
+                </div>
+
+                <!-- 오른쪽: 제어판 및 입력 -->
+                <div class="space-y-6">
+                    <!-- 시뮬레이션 제어 -->
+                    <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-bold mb-4 text-white">시뮬레이션 제어</h3>
+                        <div class="space-y-3">
+                            <button id="startBtn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                                시작
+                            </button>
+                            <button id="pauseBtn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded">
+                                일시정지
+                            </button>
+                            <button id="resetBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
+                                초기화
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 변수 조절 -->
+                    <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-bold mb-4 text-white">변수 조절</h3>
+                        
+                        <!-- 전체 인원 수 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">
+                                전체 인원 수: <span id="populationValue">120</span>
+                            </label>
+                            <input type="range" id="populationSlider" min="30" max="180" value="120" class="w-full">
+                            <p class="text-xs text-gray-400">30~180명</p>
+                        </div>
+
+                        <!-- 처음 감염자 수 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">
+                                처음 감염자 수: <span id="initialInfectedValue">5</span>
+                            </label>
+                            <input type="range" id="initialInfectedSlider" min="1" max="20" value="5" class="w-full">
+                            <p class="text-xs text-gray-400">1~20명</p>
+                        </div>
+
+                        <!-- 감염 확률 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">
+                                감염 확률: <span id="infectionRateValue">6</span>
+                            </label>
+                            <input type="range" id="infectionRateSlider" min="1" max="10" value="6" class="w-full">
+                            <p class="text-xs text-gray-400">1~10 (높을수록 감염 쉬움)</p>
+                        </div>
+
+                        <!-- 회복 속도 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">
+                                회복 속도: <span id="recoverySpeedValue">2</span>
+                            </label>
+                            <input type="range" id="recoverySpeedSlider" min="1" max="10" value="2" class="w-full">
+                            <p class="text-xs text-gray-400">1~10 (높을수록 빨리 회복)</p>
+                        </div>
+
+                        <!-- 이동 속도 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">
+                                이동 속도: <span id="movementSpeedValue">4</span>
+                            </label>
+                            <input type="range" id="movementSpeedSlider" min="1" max="8" value="4" class="w-full">
+                            <p class="text-xs text-gray-400">1~8 (높을수록 빨리 이동)</p>
+                        </div>
+
+                        <!-- 거리두기 정도 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">
+                                거리두기 정도: <span id="distancingValue">1</span>
+                            </label>
+                            <input type="range" id="distancingSlider" min="0" max="8" value="1" class="w-full">
+                            <p class="text-xs text-gray-400">0~8 (높을수록 더 멀리 떨어짐)</p>
+                        </div>
+
+                        <!-- 백신 접종자 수 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">
+                                백신 접종자 수: <span id="vaccineCountValue">0</span>명
+                            </label>
+                            <input type="range" id="vaccineCountSlider" min="0" max="180" value="0" class="w-full">
+                            <p class="text-xs text-gray-400">0~180명 (높을수록 감염 확률 감소)</p>
+                        </div>
+
+                        <!-- 치사율 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">
+                                치사율: <span id="mortalityRateValue">1</span>%
+                            </label>
+                            <input type="range" id="mortalityRateSlider" min="0" max="100" value="1" class="w-full">
+                            <p class="text-xs text-gray-400">0~100% (높을수록 사망 많음)</p>
+                        </div>
+
+                        <!-- 잠복기 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">
+                                잠복기: <span id="incubationValue">2</span>초
+                            </label>
+                            <input type="range" id="incubationSlider" min="0.5" max="10" step="0.5" value="2" class="w-full">
+                            <p class="text-xs text-gray-400">0.5~10초</p>
+                        </div>
+
+                        <!-- 면역 소멸 시간 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">
+                                면역 소멸 시간: <span id="immunityLossValue">10</span>초
+                            </label>
+                            <input type="range" id="immunityLossSlider" min="2" max="20" step="1" value="10" class="w-full">
+                            <p class="text-xs text-gray-400">2~20초 (0=영구면역)</p>
+                        </div>
+
+                        <!-- 마스크 사용 -->
+                        <div class="flex items-center mb-4">
+                            <input type="checkbox" id="maskCheckbox" class="mr-2 w-4 h-4">
+                            <label for="maskCheckbox" class="text-sm font-semibold text-gray-200">마스크 사용</label>
+                        </div>
+                    </div>
+
+                    <!-- 탐구 기록 -->
+                    <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-bold mb-4 text-white">탐구 기록</h3>
+                        
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">가설</label>
+                            <textarea id="hypothesisText" class="w-full h-20 p-2 border border-gray-600 rounded text-sm bg-gray-700 text-gray-100" placeholder="감염이 어떻게 될 것 같은가?"></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">관찰 결과</label>
+                            <textarea id="observationText" class="w-full h-20 p-2 border border-gray-600 rounded text-sm bg-gray-700 text-gray-100" placeholder="실제로 어떻게 변했는가?"></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-200 mb-2">결론</label>
+                            <textarea id="conclusionText" class="w-full h-20 p-2 border border-gray-600 rounded text-sm bg-gray-700 text-gray-100" placeholder="가설과 관찰을 비교해서 결론을 정하세요"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== 상수 정의 =====
+        const HEALTHY = 'healthy';
+        const INFECTED = 'infected';
+        const RECOVERED = 'recovered';
+        const VACCINATED = 'vaccinated';
+        const EXPOSED = 'exposed'; // 잠복기 중
+        const DEAD = 'dead'; // 사망
+
+        // ===== 캔버스 설정 =====
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+        const graphCanvas = document.getElementById('graphCanvas');
+        const graphCtx = graphCanvas.getContext('2d');
+
+        // ===== 시뮬레이션 상태 =====
+        let isRunning = false;
+        let people = [];
+        let infectionHistory = [];
+        let timeStep = 0;
+
+        // ===== 현재 변수값 =====
+        let config = {
+            population: 120,
+            initialInfected: 5,
+            infectionRate: 6,
+            recoverySpeed: 2,
+            movementSpeed: 4,
+            distancing: 1,
+            vaccineCount: 0,
+            maskUsed: false,
+            mortalityRate: 1, // 치사율 (%)
+            incubation: 2, // 잠복기 (초)
+            immunityLoss: 10 // 면역 소멸 시간 (초, 0=영구면역)
+        };
+
+        // ===== 프레임 변환 상수 =====
+        const FPS = 60; // 초당 프레임 수
+
+        // ===== Person 클래스 =====
+        class Person {
+            constructor(x, y, state) {
+                this.x = x;
+                this.y = y;
+                this.state = state; // healthy, infected, recovered, vaccinated, exposed, dead
+                this.infectionTime = 0; // 감염된 지 몇 프레임인지
+                this.exposureTime = 0; // 잠복기 동안 경과 시간
+                this.recoveryTime = 0; // 회복 후 경과 시간
+                this.vx = (Math.random() - 0.5) * 2; // 속도
+                this.vy = (Math.random() - 0.5) * 2;
+            }
+
+            // 위치 업데이트
+            update() {
+                if (this.state === DEAD) return; // 사망자는 움직이지 않음
+
+                this.x += this.vx * config.movementSpeed / 4;
+                this.y += this.vy * config.movementSpeed / 4;
+
+                // 벽에 닿으면 튕김
+                if (this.x < 5 || this.x > canvas.width - 5) {
+                    this.vx *= -1;
+                    this.x = Math.max(5, Math.min(canvas.width - 5, this.x));
+                }
+                if (this.y < 5 || this.y > canvas.height - 5) {
+                    this.vy *= -1;
+                    this.y = Math.max(5, Math.min(canvas.height - 5, this.y));
+                }
+
+                // 잠복기: EXPOSED 상태에서 감염된 상태로 변환
+                if (this.state === EXPOSED) {
+                    this.exposureTime++;
+                    if (this.exposureTime > config.incubation * FPS) {
+                        this.state = INFECTED;
+                        this.infectionTime = 0;
+                        this.exposureTime = 0;
+                    }
+                }
+
+                // 감염된 사람의 회복 및 사망 로직
+                if (this.state === INFECTED) {
+                    this.infectionTime++;
+                    // 회복 속도가 높을수록 빨리 회복
+                    if (this.infectionTime > 200 - config.recoverySpeed * 15) {
+                        // 치사율에 따라 사망 확률 계산
+                        if (Math.random() * 100 < config.mortalityRate) {
+                            this.state = DEAD;
+                        } else {
+                            this.state = RECOVERED;
+                            this.recoveryTime = 0;
+                        }
+                        this.infectionTime = 0;
+                    }
+                }
+
+                // 회복된 사람의 면역 소멸 (0이면 영구면역)
+                if (this.state === RECOVERED && config.immunityLoss > 0) {
+                    this.recoveryTime++;
+                    if (this.recoveryTime > config.immunityLoss * FPS) {
+                        this.state = HEALTHY;
+                        this.recoveryTime = 0;
+                    }
+                }
+            }
+
+            // 그리기
+            draw() {
+                let color = '#3B82F6'; // 파란색 (건강)
+
+                if (this.state === INFECTED) {
+                    color = '#EF4444'; // 빨간색
+                } else if (this.state === RECOVERED) {
+                    color = '#10B981'; // 초록색
+                } else if (this.state === VACCINATED) {
+                    color = '#D8B4FE'; // 연보라색 (백신 접종)
+                } else if (this.state === EXPOSED) {
+                    color = '#F59E0B'; // 주황색 (잠복기)
+                } else if (this.state === DEAD) {
+                    color = '#FFFFFF'; // 흰색 (사망)
+                }
+
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 다른 사람과의 거리 계산
+            distanceTo(other) {
+                const dx = this.x - other.x;
+                const dy = this.y - other.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+
+        // ===== 초기화 함수 =====
+        function initialize() {
+            people = [];
+            infectionHistory = [];
+            timeStep = 0;
+
+            // 사람 생성
+            for (let i = 0; i < config.population; i++) {
+                const x = Math.random() * (canvas.width - 20) + 10;
+                const y = Math.random() * (canvas.height - 20) + 10;
+                let state = HEALTHY;
+
+                // 백신 접종 여부 결정 (처음 config.vaccineCount명이 백신 접종)
+                if (i < config.vaccineCount) {
+                    state = VACCINATED;
+                }
+
+                people.push(new Person(x, y, state));
+            }
+
+            // 초기 감염자 설정
+            let infectedCount = 0;
+            for (let i = 0; i < people.length && infectedCount < config.initialInfected; i++) {
+                if (people[i].state === HEALTHY) {
+                    people[i].state = INFECTED;
+                    infectedCount++;
+                }
+            }
+
+            updateStats();
+            drawSimulation();
+        }
+
+        // ===== 감염 로직 =====
+        function updateInfections() {
+            for (let i = 0; i < people.length; i++) {
+                // INFECTED 또는 EXPOSED 상태인 사람이 주변 사람에게 감염 전파
+                if (people[i].state === INFECTED || people[i].state === EXPOSED) {
+                    for (let j = 0; j < people.length; j++) {
+                        if (people[j].state === HEALTHY) {
+                            const distance = people[i].distanceTo(people[j]);
+                            
+                            // 거리두기 정도에 따라 감염 거리 변함
+                            let infectionDistance = 40 - config.distancing * 4;
+                            
+                            if (distance < infectionDistance) {
+                                // 감염 확률 계산
+                                let infectionChance = config.infectionRate / 10;
+
+                                // 마스크 사용하면 감염 확률 50% 감소
+                                if (config.maskUsed) {
+                                    infectionChance *= 0.5;
+                                }
+
+                                if (Math.random() < infectionChance) {
+                                    // 먼저 EXPOSED (잠복기) 상태로 변환
+                                    people[j].state = EXPOSED;
+                                    people[j].exposureTime = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ===== 통계 업데이트 =====
+        function updateStats() {
+            let healthy = 0, infected = 0, recovered = 0, dead = 0, vaccinated = 0;
+
+            for (let person of people) {
+                if (person.state === HEALTHY) healthy++;
+                else if (person.state === INFECTED) infected++;
+                else if (person.state === RECOVERED) recovered++;
+                else if (person.state === DEAD) dead++;
+                else if (person.state === VACCINATED) vaccinated++;
+            }
+
+            document.getElementById('healthyCount').textContent = healthy;
+            document.getElementById('infectedCount').textContent = infected;
+            document.getElementById('recoveredCount').textContent = recovered;
+            document.getElementById('deathCount').textContent = dead;
+            document.getElementById('vaccinatedCount').textContent = vaccinated;
+
+            // 상태 표시
+            let statusText = '준비 중';
+            if (isRunning) {
+                if (infected > 0) {
+                    if (infected > infectionHistory.length > 1 && infectionHistory[infectionHistory.length - 1] < infectionHistory[infectionHistory.length - 2]) {
+                        statusText = '감염 감소 중';
+                    } else {
+                        statusText = '확산 중';
+                    }
+                } else {
+                    statusText = '유행 종료';
+                }
+            }
+            document.getElementById('statusText').textContent = statusText;
+
+            // 감염자 수 기록
+            infectionHistory.push(infected);
+        }
+
+        // ===== 시뮬레이션 그리기 =====
+        function drawSimulation() {
+            // 배경 지우기
+            ctx.fillStyle = '#1F2937';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 사람들 그리기
+            for (let person of people) {
+                person.draw();
+            }
+        }
+
+        // ===== 그래프 그리기 =====
+        function drawGraph() {
+            // 배경
+            graphCtx.fillStyle = '#1F2937';
+            graphCtx.fillRect(0, 0, graphCanvas.width, graphCanvas.height);
+
+            if (infectionHistory.length === 0) return;
+
+            const padding = 40;
+            const graphWidth = graphCanvas.width - padding * 2;
+            const graphHeight = graphCanvas.height - padding * 2;
+
+            // 축 그리기
+            graphCtx.strokeStyle = '#9CA3AF';
+            graphCtx.lineWidth = 2;
+            graphCtx.beginPath();
+            graphCtx.moveTo(padding, graphHeight + padding);
+            graphCtx.lineTo(graphWidth + padding, graphHeight + padding);
+            graphCtx.stroke();
+
+            graphCtx.beginPath();
+            graphCtx.moveTo(padding, padding);
+            graphCtx.lineTo(padding, graphHeight + padding);
+            graphCtx.stroke();
+
+            // 레이블
+            graphCtx.fillStyle = '#D1D5DB';
+            graphCtx.font = '12px Arial';
+            graphCtx.textAlign = 'center';
+            graphCtx.fillText('시간 (프레임)', graphWidth / 2 + padding, graphCanvas.height - 10);
+
+            graphCtx.save();
+            graphCtx.translate(20, graphHeight / 2 + padding);
+            graphCtx.rotate(-Math.PI / 2);
+            graphCtx.fillText('감염자 수', 0, 0);
+            graphCtx.restore();
+
+            // 최대값 찾기
+            const maxInfected = Math.max(...infectionHistory, 1);
+
+            // 그래프 그리기
+            graphCtx.strokeStyle = '#EF4444';
+            graphCtx.lineWidth = 2;
+            graphCtx.beginPath();
+
+            for (let i = 0; i < infectionHistory.length; i++) {
+                const x = padding + (i / Math.max(infectionHistory.length - 1, 1)) * graphWidth;
+                const y = graphHeight + padding - (infectionHistory[i] / maxInfected) * graphHeight;
+
+                if (i === 0) {
+                    graphCtx.moveTo(x, y);
+                } else {
+                    graphCtx.lineTo(x, y);
+                }
+            }
+            graphCtx.stroke();
+
+            // 최대값 표시
+            graphCtx.fillStyle = '#D1D5DB';
+            graphCtx.textAlign = 'right';
+            graphCtx.fillText(Math.ceil(maxInfected), padding - 10, padding + 5);
+        }
+
+        // ===== 시뮬레이션 루프 =====
+        function update() {
+            if (isRunning) {
+                // 사람들 이동
+                for (let person of people) {
+                    person.update();
+                }
+
+                // 감염 전파
+                updateInfections();
+
+                timeStep++;
+            }
+
+            // 통계 업데이트 및 그리기
+            updateStats();
+            drawSimulation();
+            drawGraph();
+
+            requestAnimationFrame(update);
+        }
+
+        // ===== 버튼 이벤트 =====
+        document.getElementById('startBtn').addEventListener('click', () => {
+            isRunning = true;
+            document.getElementById('startBtn').textContent = '재시작';
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            isRunning = false;
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            isRunning = false;
+            initialize();
+            document.getElementById('startBtn').textContent = '시작';
+        });
+
+        // ===== 슬라이더 이벤트 =====
+        document.getElementById('populationSlider').addEventListener('input', (e) => {
+            config.population = parseInt(e.target.value);
+            document.getElementById('populationValue').textContent = config.population;
+            if (!isRunning) initialize();
+        });
+
+        document.getElementById('initialInfectedSlider').addEventListener('input', (e) => {
+            config.initialInfected = parseInt(e.target.value);
+            document.getElementById('initialInfectedValue').textContent = config.initialInfected;
+            if (!isRunning) initialize();
+        });
+
+        document.getElementById('infectionRateSlider').addEventListener('input', (e) => {
+            config.infectionRate = parseInt(e.target.value);
+            document.getElementById('infectionRateValue').textContent = config.infectionRate;
+        });
+
+        document.getElementById('recoverySpeedSlider').addEventListener('input', (e) => {
+            config.recoverySpeed = parseInt(e.target.value);
+            document.getElementById('recoverySpeedValue').textContent = config.recoverySpeed;
+        });
+
+        document.getElementById('movementSpeedSlider').addEventListener('input', (e) => {
+            config.movementSpeed = parseInt(e.target.value);
+            document.getElementById('movementSpeedValue').textContent = config.movementSpeed;
+        });
+
+        document.getElementById('distancingSlider').addEventListener('input', (e) => {
+            config.distancing = parseInt(e.target.value);
+            document.getElementById('distancingValue').textContent = config.distancing;
+        });
+
+        document.getElementById('vaccineCountSlider').addEventListener('input', (e) => {
+            config.vaccineCount = Math.min(parseInt(e.target.value), config.population);
+            document.getElementById('vaccineCountValue').textContent = config.vaccineCount;
+            if (!isRunning) initialize();
+        });
+
+        document.getElementById('maskCheckbox').addEventListener('change', (e) => {
+            config.maskUsed = e.target.checked;
+        });
+
+        // ===== 새로운 변수 이벤트 리스너 =====
+        document.getElementById('mortalityRateSlider').addEventListener('input', (e) => {
+            config.mortalityRate = parseInt(e.target.value);
+            document.getElementById('mortalityRateValue').textContent = config.mortalityRate;
+        });
+
+        document.getElementById('incubationSlider').addEventListener('input', (e) => {
+            config.incubation = parseFloat(e.target.value);
+            document.getElementById('incubationValue').textContent = config.incubation;
+        });
+
+        document.getElementById('immunityLossSlider').addEventListener('input', (e) => {
+            config.immunityLoss = parseInt(e.target.value);
+            document.getElementById('immunityLossValue').textContent = config.immunityLoss === 0 ? '영구면역' : config.immunityLoss;
+        });
+
+        // ===== 감염 버튼 이벤트 =====
+        document.getElementById('infectBtn').addEventListener('click', () => {
+            if (!isRunning) {
+                alert('시뮬레이션을 먼저 시작하세요!');
+                return;
+            }
+
+            const count = parseInt(document.getElementById('infectionCountInput').value);
+            if (isNaN(count) || count < 1) {
+                alert('1 이상의 수를 입력하세요');
+                return;
+            }
+
+            let infectedCount = 0;
+            for (let i = 0; i < people.length && infectedCount < count; i++) {
+                if (people[i].state === HEALTHY) {
+                    people[i].state = EXPOSED;
+                    people[i].exposureTime = 0;
+                    infectedCount++;
+                }
+            }
+
+            if (infectedCount === 0) {
+                alert('건강한 사람이 없습니다!');
+            }
+        });
+
+        // ===== 초기화 및 시작 =====
+        initialize();
+        update();
+    </script>
+</body>
+</html>
